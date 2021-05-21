@@ -276,4 +276,4 @@ with open(gm_card_csv, newline='') as csvItems:
 with open(player_card_csv, newline='') as csvItems:
     itemsReader = csv.DictReader(csvItems, delimiter=',', quotechar='"')
     for card in itemsReader:
-        makePlayerCard(card).draw(app)
+        makePlayerCard(card, app)
