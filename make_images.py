@@ -13,6 +13,7 @@ cardSideMargins = int(74 * scaleFactor)
 lowerBorderInlay = int(20 * scaleFactor)
 titleThickness = int(84 * scaleFactor)
 bottomThickness = int(265 * scaleFactor)
+bottomThicknessSimple = int(330 * scaleFactor)
 
 smallFontSize = int(32 * scaleFactor)
 mediumFontSize = int(36 * scaleFactor)
@@ -31,23 +32,11 @@ fontLarge = QFont(fontFamily, largeFontSize)
 player_card_csv = "../card_csvs/player_cards.csv"	
 gm_card_csv = "../card_csvs/gm_cards.csv"	
 
-class Card:
+class SimpleCard:
 	background = ""
 	saveLocation = ""
 	title = ""
 	description = ""
-	difficulty = ""
-	extra = ""
-	lethal = False
-
-	def hasTopLine(self):
-		return bool(self.title.strip())
-
-	def hasBottomLine(self):
-		return bool(self.difficulty.strip()) or bool(self.extra.strip()) or self.lethal 
-
-	def hasMiddleLine(self):
-		return bool(self.description.strip())
 
 	def draw(self, app):
 		backgroundPixmap = QPixmap()
@@ -70,6 +59,56 @@ class Card:
 		descriptionLabel.setAlignment(Qt.AlignHCenter)
 		descriptionLabel.setWordWrap(True)
 
+		wholeCard.layout().setRowMinimumHeight(0, titleThickness)
+		wholeCard.layout().setRowMinimumHeight(2, bottomThicknessSimple)
+
+		wholeCard.layout().setRowStretch(1,1)
+
+		wholeCard.layout().addWidget(titleLabel, 0, 0, 1, 1, Qt.AlignHCenter | Qt.AlignVCenter)
+		wholeCard.layout().addWidget(descriptionLabel, 2, 0, 1, 1, Qt.AlignCenter | Qt.AlignVCenter)
+
+		wholeCard.show()
+
+		app.exec_()
+		wholeCard.grab().save(self.saveLocation + "/" + self.title + ".png")
+
+class Card:
+	background = ""
+	saveLocation = ""
+	title = ""
+	description = ""
+	difficulty = ""
+	extra = ""
+
+	def hasTopLine(self):
+		return bool(self.title.strip())
+
+	def hasBottomLine(self):
+		return bool(self.difficulty.strip()) or bool(self.extra.strip())
+
+	def hasMiddleLine(self):
+		return bool(self.description.strip())
+
+	def draw(self, app):
+		backgroundPixmap = QPixmap()
+		backgroundPixmap.load(self.background)
+
+		wholeCard = QLabel()
+		wholeCard.setPixmap(backgroundPixmap)
+		wholeCard.resize(cardWidth, cardHeight)
+		wholeCard.setScaledContents(True)
+		wholeCard.setLayout(QGridLayout())
+		wholeCard.layout().setContentsMargins(cardSideMargins,cardSideMargins,cardSideMargins,cardSideMargins)
+
+		titleLabel = QLabel()
+
+
+		descriptionLabel = QLabel()
+		descriptionLabel.setText(self.description)
+		descriptionLabel.setFont(fontMedium)
+		descriptionLabel.setAlignment(Qt.AlignHCenter)
+		descriptionLabel.setWordWrap(True)
+
 		difficultyLabel = QLabel()
 		difficultyLabel.setText(self.difficulty)
 		difficultyLabel.setFont(fontLarge)
@@ -77,14 +116,6 @@ class Card:
 		extraLabel = QLabel()
 		extraLabel.setText(self.extra)
 		extraLabel.setFont(fontMedium)
-
-		skullPixmap = QPixmap()
-		skullPixmap.load("../card_templates/skull_icon.png")
-
-		skullLabel = QLabel()
-		skullLabel.setVisible(self.lethal)
-		skullLabel.setPixmap(skullPixmap.scaled(titleThickness,titleThickness))
-		skullLabel.setScaledContents(True)
 
 		if self.hasTopLine():
 			wholeCard.layout().setRowMinimumHeight(0, titleThickness)
@@ -105,12 +136,27 @@ class Card:
 		wholeCard.layout().addWidget(descriptionLabel, 2, 0, 1, 5, Qt.AlignCenter | Qt.AlignVCenter)
 		wholeCard.layout().addWidget(difficultyLabel, 3, 1, 1, 1, Qt.AlignLeft | Qt.AlignBottom)
 		wholeCard.layout().addWidget(extraLabel, 3, 2, 1, 1, Qt.AlignRight | Qt.AlignBottom)
-		wholeCard.layout().addWidget(skullLabel, 3, 3, 1, 1, Qt.AlignLeft | Qt.AlignVCenter)
 
 		wholeCard.layout().setColumnMinimumWidth(0, lowerBorderInlay)
 		wholeCard.layout().setColumnMinimumWidth(4, lowerBorderInlay)
 
 		wholeCard.show()
+
+		#fit name text
+		fit = False
+		fontLarge.setPointSize(largeFontSize)
+
+		while (not fit):
+			fm = QFontMetrics(fontLarge)
+			bound = fm.boundingRect(0,0, titleLabel.width(), 64, Qt.AlignLeft, self.title)
+
+			if (bound.width() <= titleLabel.width()):
+				fit = True
+			else:
+				fontLarge.setPointSize(fontLarge.pointSize() - 1);
+
+		titleLabel.setText(self.title)
+		titleLabel.setFont(fontLarge)
 
 		app.exec_()
 		wholeCard.grab().save(self.saveLocation + "/" + self.title + ".png")
@@ -149,12 +195,7 @@ def makeThreatCard(cardInfo, app):
 
 	damage = cardInfo["REST/DAMAGE AMOUNT"]
 
-	if (cardInfo["TO ALL?"] == "TRUE"):
-		card.extra = damage + " damage to all"
-	else:
-		card.extra = damage + " damage"
-
-	card.lethal = (cardInfo["LETHAL"] == "TRUE")
+	card.extra = damage + " " + cardInfo["DAMAGE EXTRA"]
 
 	card.draw(app)
 
@@ -174,7 +215,7 @@ def makeGMCard(cardInfo, app):
 		return
 
 def makeTowerCard(cardInfo, app):
-	card = Card()
+	card = SimpleCard()
 
 	card.background = "../card_templates/player_cards/the_tower.png"
 	card.saveLocation = "../produced_cards/player_cards"
@@ -182,7 +223,7 @@ def makeTowerCard(cardInfo, app):
 	card.draw(app)
 
 def makeTraitCard(cardInfo, app):
-	card = Card()
+	card = SimpleCard()
 
 	subType = cardInfo["SUBTYPE"].lower()
 
@@ -194,7 +235,7 @@ def makeTraitCard(cardInfo, app):
 	card.draw(app)
 
 def makeAdvancedTraitCard(cardInfo, app):
-	card = Card()
+	card = SimpleCard()
 
 	subType = cardInfo["SUBTYPE"].lower()
 
@@ -206,7 +247,7 @@ def makeAdvancedTraitCard(cardInfo, app):
 	card.draw(app)
 
 def makeWoundCard(cardInfo, app):
-	card = Card()
+	card = SimpleCard()
 
 	subType = cardInfo["SUBTYPE"].lower()
 
@@ -218,11 +259,11 @@ def makeWoundCard(cardInfo, app):
 	card.draw(app)
 
 def makeMajorWoundCard(cardInfo, app):
-	card = Card()
+	card = SimpleCard()
 
 	subType = cardInfo["SUBTYPE"].lower()
 
-	card.background = "../card_templates/player_cards/minor_wounds/"+subType+".png"
+	card.background = "../card_templates/player_cards/major_wounds/"+subType+".png"
 	card.saveLocation = "../produced_cards/player_cards/"+subType+"/major_wounds"
 	card.title = cardInfo["NAME"]
 	card.description = cardInfo["TEXT"]
@@ -230,12 +271,12 @@ def makeMajorWoundCard(cardInfo, app):
 	card.draw(app)
 
 def makeBlessingCard(cardInfo, app):
-	card = Card()
+	card = SimpleCard()
 
 	subType = cardInfo["SUBTYPE"].lower()
 
-	card.background = "../card_templates/player_cards/skills/"+subType+".png"
-	card.saveLocation = "../produced_cards/player_cards/skills"
+	card.background = "../card_templates/player_cards/blessings/"+subType+".png"
+	card.saveLocation = "../produced_cards/player_cards/blessings"
 	card.title = cardInfo["NAME"]
 	card.description = cardInfo["TEXT"]
 
